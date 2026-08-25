@@ -1,0 +1,66 @@
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Java / Gradle
+backend/.gradle/
+backend/build/
+backend/bin/
+backend/out/
+backend/*.jar
+backend/*.war
+backend/*.ear
+backend/.classpath
+backend/.project
+backend/.settings/
+
+# Node / NPM
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# AWS
+.aws-sam/
+
+# Secrets
+*.pem
+*.key
+secrets.json
+credentials.json
