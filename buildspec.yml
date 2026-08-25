@@ -1,0 +1,112 @@
+version: 0.2
+
+###############################################################################
+# Environment variables — set these in the CodeBuild project or Parameter Store
+###############################################################################
+# Required env vars (configured in CodeBuild console / SSM):
+#   TF_VAR_ses_source_email   - Verified SES sender address
+#   TF_VAR_bedrock_model_id   - Bedrock model ID
+#   TF_VAR_bedrock_region     - Bedrock model region
+#   AWS_REGION                - e.g. us-east-1  (injected by CodeBuild automatically)
+#
+# The CodeBuild service role must have permissions for:
+#   - S3 (tfstate bucket read/write)
+#   - DynamoDB (tflock table)
+#   - Lambda, IAM, API Gateway, SES, S3, CloudWatch Logs (for terraform apply)
+###############################################################################
+
+env:
+  variables:
+    TF_VERSION: "1.7.5"
+    JAVA_HOME: "/usr/lib/jvm/java-21-amazon-corretto"
+  parameter-store:
+    TF_VAR_ses_source_email: /resume-tailor/ses_source_email
+    TF_VAR_bedrock_model_id: /resume-tailor/bedrock_model_id
+    TF_VAR_bedrock_region: /resume-tailor/bedrock_region
+
+phases:
+
+  ##############################################################################
+  # INSTALL — toolchain setup
+  ##############################################################################
+  install:
+    runtime-versions:
+      java: corretto21
+      nodejs: 18
+    commands:
+      - echo "=== Installing Terraform ${TF_VERSION} ==="
+      - curl -fsSL https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip -o terraform.zip
+      - unzip -o terraform.zip -d /usr/local/bin
+      - terraform version
+
+  ##############################################################################
+  # PRE_BUILD — build Java backend & React frontend
+  ##############################################################################
+  pre_build:
+    commands:
+      # --- Backend ---
+      - echo "=== Building Java backend ==="
+      - cd backend
+      - chmod +x gradlew || true
+      - gradle clean build -x test
+      - echo "Backend build complete. Artifacts in backend/build/libs/"
+      - cd ..
+
+      # --- Frontend ---
+      - echo "=== Building React frontend ==="
+      - cd frontend
+      - npm ci
+      - npm run build
+      - echo "Frontend build complete. Artifacts in frontend/dist/"
+      - cd ..
+
+  ##############################################################################
+  # BUILD — Terraform plan & apply
+  ##############################################################################
+  build:
+    commands:
+      - echo "=== Running Terraform ==="
+      - cd infrastructure
+
+      - echo "--- terraform init ---"
+      - terraform init -input=false
+
+      - echo "--- terraform validate ---"
+      - terraform validate
+
+      - echo "--- terraform plan ---"
+      - terraform plan -input=false -out=tfplan
+
+      - echo "--- terraform apply ---"
+      - terraform apply -input=false -auto-approve tfplan
+
+      - cd ..
+
+  ##############################################################################
+  # POST_BUILD — capture outputs
+  ##############################################################################
+  post_build:
+    commands:
+      - echo "=== Deployment complete ==="
+      - cd infrastructure
+      - echo "API Endpoint:" && terraform output -raw api_endpoint
+      - echo "Resume Bucket:" && terraform output -raw resume_bucket_name
+      - cd ..
+
+###############################################################################
+# Artifacts — store lambda JAR and frontend dist for optional further use
+###############################################################################
+artifacts:
+  files:
+    - backend/build/libs/resume-tailor-0.0.1-SNAPSHOT-aws.jar
+    - frontend/dist/**/*
+    - infrastructure/tfplan
+  discard-paths: no
+
+###############################################################################
+# Cache — speed up subsequent builds
+###############################################################################
+cache:
+  paths:
+    - /root/.gradle/caches/**/*
+    - frontend/node_modules/**/*
