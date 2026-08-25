@@ -1,0 +1,11 @@
+variable "project_name" { type = string }
+variable "tailor_lambda_invoke_arn" { type = string }
+variable "tailor_lambda_function_name" { type = string }
+variable "email_lambda_invoke_arn" { type = string }
+variable "email_lambda_function_name" { type = string }
+variable "track_analytics_invoke_arn" { type = string }
+variable "track_analytics_function_name" { type = string }
+variable "get_analytics_invoke_arn" { type = string }
+variable "get_analytics_function_name" { type = string }
+variable "master_resume_invoke_arn" { type = string }
+variable "master_resume_function_name" { type = string }
